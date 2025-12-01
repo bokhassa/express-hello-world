@@ -3,14 +3,14 @@ pipeline {
 
     environment {
         AWS_REGION     = 'eu-west-3'
-        AWS_ACCOUNT_ID = '651706762987'
+        AWS_ACCOUNT_ID = '651706762987'       // <-- Mets ton Account ID si différent
         ECR_REPO_NAME  = 'hello-node-repo'
         IMAGE_TAG      = "${env.BUILD_NUMBER}"
         ECR_REGISTRY   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         ECR_IMAGE_URI  = "${ECR_REGISTRY}/${ECR_REPO_NAME}:${IMAGE_TAG}"
 
         EC2_DEPLOY_USER = 'ec2-user'
-        EC2_DEPLOY_HOST = '3.93.23.158'
+        EC2_DEPLOY_HOST = '3.93.23.158'        // <-- METS L'IP de ton EC2
     }
 
     options {
@@ -30,6 +30,20 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Install Node.js') {
+            steps {
+                ansiColor('xterm') {
+                    sh '''
+                        echo "==> Installing Node.js 18"
+                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                        apt-get install -y nodejs
+                        node -v
+                        npm -v
+                    '''
+                }
             }
         }
 
@@ -82,14 +96,14 @@ pipeline {
                 ansiColor('xterm') {
                     sshagent(credentials: ['ec2-ssh-key']) {
                         sh '''
-                           ssh -o StrictHostKeyChecking=no ${EC2_DEPLOY_USER}@${EC2_DEPLOY_HOST} "
-                              aws ecr get-login-password --region ${AWS_REGION} \
-                                  | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                            ssh -o StrictHostKeyChecking=no ${EC2_DEPLOY_USER}@${EC2_DEPLOY_HOST} "
+                                aws ecr get-login-password --region ${AWS_REGION} \
+                                    | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
-                              docker pull ${ECR_IMAGE_URI}
-                              docker rm -f hello-node || true
-                              docker run -d --name hello-node -p 80:3000 ${ECR_IMAGE_URI}
-                           "
+                                docker pull ${ECR_IMAGE_URI}
+                                docker rm -f hello-node || true
+                                docker run -d --name hello-node -p 80:3000 ${ECR_IMAGE_URI}
+                            "
                         '''
                     }
                 }
@@ -99,10 +113,10 @@ pipeline {
 
     post {
         success {
-            echo "Déploiement réussi !"
+            echo "Déploiement réussi ! 🚀"
         }
         failure {
-            echo "Erreur pendant le pipeline."
+            echo "Erreur pendant le pipeline ❌"
         }
     }
 }

@@ -3,14 +3,14 @@ pipeline {
 
     environment {
         AWS_REGION     = 'eu-west-3'
-        AWS_ACCOUNT_ID = '651706762987'       // <-- Mets ton Account ID si différent
+        AWS_ACCOUNT_ID = '651706762987'
         ECR_REPO_NAME  = 'hello-node-repo'
         IMAGE_TAG      = "${env.BUILD_NUMBER}"
         ECR_REGISTRY   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         ECR_IMAGE_URI  = "${ECR_REGISTRY}/${ECR_REPO_NAME}:${IMAGE_TAG}"
 
         EC2_DEPLOY_USER = 'ec2-user'
-        EC2_DEPLOY_HOST = '3.93.23.158'        // <-- METS L'IP de ton EC2
+        EC2_DEPLOY_HOST = '3.93.23.158'
     }
 
     options {
@@ -33,32 +33,25 @@ pipeline {
             }
         }
 
-        stage('Install Node.js') {
+        stage('Install & Test (Node.js in Docker)') {
             steps {
                 ansiColor('xterm') {
-                    sh '''
-                        echo "==> Installing Node.js 18"
-                        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-                        apt-get install -y nodejs
-                        node -v
-                        npm -v
-                    '''
+                    script {
+                        docker.image('node:18').inside {
+                            sh '''
+                                echo "==> Using Node.js inside Docker"
+                                node -v
+                                npm -v
+                                npm install
+                                npm test || echo "Tests échoués mais on continue"
+                            '''
+                        }
+                    }
                 }
             }
         }
 
-        stage('Install & Test') {
-            steps {
-                ansiColor('xterm') {
-                    sh '''
-                        npm install
-                        npm test || echo "Tests échoués mais on continue (projet)"
-                    '''
-                }
-            }
-        }
-
-        stage('Build Docker') {
+        stage('Build Docker Image') {
             steps {
                 ansiColor('xterm') {
                     sh '''

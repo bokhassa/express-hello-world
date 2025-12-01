@@ -1,0 +1,97 @@
+---
+- name: Provision AWS infra for hello-node app (version simplifiée)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  collections:
+    - community.aws
+    - amazon.aws
+
+  vars:
+    aws_region: "eu-west-3"
+    aws_account_id: "651706762987"      # ⚠ mets ton vrai Account ID ici
+    app_name: "hello-node"
+    ecr_repo_name: "hello-node-repo"
+    ecs_cluster_name: "hello-node-cluster"
+    ecs_service_name: "hello-node-service"
+    ecs_task_family: "hello-node-task"
+    container_port: 3000
+    desired_count: 1
+
+  tasks:
+
+    - name: Ensure ECR repository exists
+      community.aws.ecs_ecr:
+        name: "{{ ecr_repo_name }}"
+        state: present
+        registry_id: "{{ aws_account_id }}"
+        region: "{{ aws_region }}"
+      register: ecr_repo
+
+    - name: Show ECR repository info
+      debug:
+        var: ecr_repo
+
+    - name: Ensure ECS cluster exists
+      community.aws.ecs_cluster:
+        name: "{{ ecs_cluster_name }}"
+        state: present
+        region: "{{ aws_region }}"
+      register: ecs_cluster
+
+    - name: Show ECS cluster info
+      debug:
+        var: ecs_cluster
+
+    - name: Create IAM role for ECS task execution
+      amazon.aws.iam_role:
+        name: "{{ app_name }}-ecsTaskExecutionRole"
+        assume_role_policy_document: >
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Principal": {
+                  "Service": "ecs-tasks.amazonaws.com"
+                },
+                "Action": "sts:AssumeRole"
+              }
+            ]
+          }
+        managed_policies:
+          - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        state: present
+      register: ecs_task_execution_role
+
+    - name: Show ECS task execution role info
+      debug:
+        var: ecs_task_execution_role
+
+    # La partie ci-dessous est commentée pour éviter les erreurs de module/paramètres.
+    # Tu peux la gérer plus tard via Jenkins / AWS CLI si tu veux faire la task definition
+    # de manière dynamique dans ton pipeline CI/CD.
+
+    # - name: Register ECS task definition (placeholder)
+    #   community.aws.ecs_taskdefinition:
+    #     family: "{{ ecs_task_family }}"
+    #     network_mode: awsvpc
+    #     cpu: "256"
+    #     memory: "512"
+    #     requires_compatibilities:
+    #       - FARGATE
+    #     execution_role_arn: "{{ ecs_task_execution_role.iam_role.arn | default(ecs_task_execution_role.role.arn) }}"
+    #     container_definitions:
+    #       - name: "{{ app_name }}"
+    #         image: "{{ aws_account_id }}.dkr.ecr.{{ aws_region }}.amazonaws.com/{{ ecr_repo_name }}:latest"
+    #         essential: true
+    #         portMappings:
+    #           - containerPort: "{{ container_port }}"
+    #     state: present
+    #     region: "{{ aws_region }}"
+    #   register: ecs_taskdef
+
+    # - name: Show ECS task definition info
+    #   debug:
+    #     var: ecs_taskdef

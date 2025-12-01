@@ -1,0 +1,16 @@
+aws_region: "eu-west-3"
+aws_account_id: "651706762987"   # <= mets ton vrai Account ID si différent
+
+app_name: "hello-node"
+ecr_repo_name: "hello-node-repo"
+ecs_cluster_name: "hello-node-cluster"
+ecs_service_name: "hello-node-service"
+ecs_task_family: "hello-node-task"
+
+container_port: 3000
+desired_count: 1
+
+# On laisse ça vide pour l’instant, on complètera plus tard si on crée un service ECS Fargate
+vpc_id: ""
+subnet_ids: []
+security_group_id: ""
